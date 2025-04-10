@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMO RADAR v5.0</title>
+    <style>
+        /* Previous CSS styles remain the same */
+        :root {
+            --radar-size: 130px;
+            --scan-color: #0f0;
+        }
+
+        body {
+            background: #000;
+            color: var(--scan-color);
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            gap: 10px;
+        }
+
+        .radar-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 10px 0;
+        }
+
+        .radar {
+            position: relative;
+            width: var(--radar-size);
+            height: var(--radar-size);
+            border-radius: 50%;
+            border: 1px solid var(--scan-color);
+            box-shadow: 0 0 10px var(--scan-color);
+            overflow: hidden;
+        }
+
+        .scan-line {
+            position: absolute;
+            width: 90%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--scan-color));
+            top: 50%;
+            left: 50%;
+            transform-origin: left center;
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .target {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #f00;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        button {
+            background: transparent;
+            color: var(--scan-color);
+            border: 1px solid var(--scan-color);
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .terminal {
+            flex: 1;
+            border: 1px solid var(--scan-color);
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .sys-info {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainContainer">
+        <h1 style="text-align: center;">HAMO RADAR v5.0</h1>
+
+        <div class="sys-info" id="sysInfo">
+            <div>CPU: ████░░ 75%</div>
+            <div>GPU: ███░░░ 64°C</div>
+            <div>RAM: █████░ 87%</div>
+            <div>NET: ██░░░░ 132ms</div>
+        </div>
+
+        <div class="radar-container">
+            <div class="radar" id="radar1">
+                <div class="scan-line"></div>
+            </div>
+            <div class="radar" id="radar2">
+                <div class="scan-line"></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn">▶ START</button>
+            <button id="stopBtn">⏹ STOP</button>
+            <button id="clearBtn">⌧ CLEAR</button>
+            <button id="infoBtn">⚠ DIAG</button>
+        </div>
+
+        <div class="terminal" id="terminal">
+            <div>[SYSTEM] Radar offline</div>
+        </div>
+    </div>
+
+    <script>
+        // Audio Workaround for Replit
+        let radarSound = null;
+
+        function initAudio() {
+            radarSound = new Audio('/radar.mp4');
+            radarSound.loop = true;
+            document.body.appendChild(radarSound);  // Required for some browsers
+        }
+
+        // First user interaction handler
+        let audioInitialized = false;
+        document.getElementById('mainContainer').addEventListener('click', () => {
+            if (!audioInitialized) {
+                initAudio();
+                audioInitialized = true;
+                log('Audio system initialized');
+            }
+        });
+
+        const terminal = document.getElementById('terminal');
+        let isActive = false;
+        let updateInterval;
+
+        function log(message) {
+            const entry = document.createElement('div');
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            terminal.appendChild(entry);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function updateSystem() {
+            const stats = {
+                cpu: 70 + Math.floor(Math.random() * 15),
+                gpu: 60 + Math.floor(Math.random() * 8),
+                ram: 80 + Math.floor(Math.random() * 10),
+                net: 120 + Math.floor(Math.random() * 30)
+            };
+
+            document.getElementById('sysInfo').innerHTML = `
+                <div>CPU: ${'█'.repeat(4)}${'░'.repeat(2)} ${stats.cpu}%</div>
+                <div>GPU: ${'█'.repeat(3)}${'░'.repeat(3)} ${stats.gpu}°C</div>
+                <div>RAM: ${'█'.repeat(5)}${'░'.repeat(1)} ${stats.ram}%</div>
+                <div>NET: ${'█'.repeat(2)}${'░'.repeat(4)} ${stats.net}ms</div>
+            `;
+        }
+
+        function createTarget(radar) {
+            const target = document.createElement('div');
+            target.className = 'target';
+
+            const radius = radar.offsetWidth / 2 - 5;
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * radius;
+
+            target.style.left = `${50 + (Math.cos(angle) * distance / radius * 50)}%`;
+            target.style.top = `${50 + (Math.sin(angle) * distance / radius * 50)}%`;
+
+            radar.appendChild(target);
+            setTimeout(() => target.remove(), 5000);
+        }
+
+        function startSystem() {
+            if(isActive) return;
+            isActive = true;
+
+            // Start audio with user interaction
+            if (radarSound) {
+                radarSound.play()
+                    .then(() => log('Audio activated'))
+                    .catch(error => log(`Audio error: ${error}`));
+            }
+
+            // Start updates
+            updateInterval = setInterval(() => {
+                [radar1, radar2].forEach(createTarget);
+                updateSystem();
+            }, 1500);
+
+            log('RADAR ACTIVATED');
+            log('SCANNING SECTORS...');
+
+            setTimeout(() => {
+                if(isActive) {
+                    log('TARGET LOCKED: 42.3314° N, 83.0458° W');
+                    log('STATUS: CONFIRMED');
+                }
+            }, 40000);
+        }
+
+        function stopSystem() {
+            if(!isActive) return;
+            isActive = false;
+
+            if (radarSound) {
+                radarSound.pause();
+                radarSound.currentTime = 0;
+            }
+            clearInterval(updateInterval);
+            document.querySelectorAll('.target').forEach(t => t.remove());
+            log('RADAR SHUTDOWN');
+        }
+
+        // Event listeners
+        document.getElementById('startBtn').addEventListener('click', startSystem);
+        document.getElementById('stopBtn').addEventListener('click', stopSystem);
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            terminal.innerHTML = '<div>[SYSTEM] Terminal cleared</div>';
+        });
+        document.getElementById('infoBtn').addEventListener('click', updateSystem);
+
+        // Initial state
+        updateSystem();
+        log('SYSTEM READY - CLICK ANYWHERE TO INITIALIZE AUDIO');
+    </script>
+</body>
+</html>
