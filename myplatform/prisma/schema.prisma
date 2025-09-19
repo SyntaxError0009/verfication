@@ -1,0 +1,131 @@
+// Prisma schema for the platform
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SiteStatus {
+  DRAFT
+  ACTIVE
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  ACTIVE
+  CANCELED
+  PAST_DUE
+}
+
+model User {
+  id                 String         @id @default(cuid())
+  email              String         @unique
+  name               String?
+  hashedPassword     String?
+  role               UserRole       @default(USER)
+  emailVerified      DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  accounts           Account[]
+  sessions           Session[]
+  sites              Site[]
+  subscriptions      Subscription[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Site {
+  id            String     @id @default(cuid())
+  name          String
+  ownerId       String
+  subdomain     String?    @unique
+  customDomain  String?    @unique
+  locale        String     @default("en")
+  status        SiteStatus @default(DRAFT)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  pages Page[]
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  siteId    String
+  name      String
+  slug      String
+  content   Json
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, slug])
+}
+
+model ContentEntry {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model Subscription {
+  id                   String               @id @default(cuid())
+  userId               String
+  plan                 String               @default("pro_monthly")
+  status               SubscriptionStatus   @default(INACTIVE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
