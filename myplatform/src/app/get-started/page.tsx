@@ -36,7 +36,7 @@ export default function GetStartedPage() {
             placeholder="Describe your business..."
           />
           <div className="flex items-center gap-3">
-            <select className="rounded-lg border p-2" value={type} onChange={(e) => setType(e.target.value as any)}>
+            <select className="rounded-lg border p-2" value={type} onChange={(e) => setType(e.target.value as "site" | "system")}>
               <option value="site">Website</option>
               <option value="system">Business System (POS/Inventory/Invoices)</option>
             </select>

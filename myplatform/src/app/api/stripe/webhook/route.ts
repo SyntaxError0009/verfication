@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -14,12 +14,12 @@ export async function POST(request: Request) {
   const sig = request.headers.get("stripe-signature");
   if (!sig) return NextResponse.json({ error: "No signature" }, { status: 400 });
 
-  const stripe = new Stripe(stripeSecret, { apiVersion: "2024-12-18.acacia" });
+  const stripe = new Stripe(stripeSecret);
   const payload = await request.text();
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(payload, sig, secret);
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -34,7 +34,9 @@ export async function POST(request: Request) {
           where: { stripeSubscriptionId },
           data: {
             status: sub.status === "active" ? "ACTIVE" : sub.status === "past_due" ? "PAST_DUE" : sub.status === "canceled" ? "CANCELED" : "INACTIVE",
-            currentPeriodEnd: new Date(sub.current_period_end * 1000),
+            currentPeriodEnd: (sub as unknown as { current_period_end?: number }).current_period_end
+              ? new Date(((sub as unknown as { current_period_end?: number }).current_period_end as number) * 1000)
+              : null,
             stripeCustomerId,
           },
         });
@@ -44,7 +46,9 @@ export async function POST(request: Request) {
         break;
     }
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    const message = (e as Error).message;
+    // swallow to avoid noisy logs in dev
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

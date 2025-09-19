@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
   if (!stripeKey) return NextResponse.json({ error: "Stripe not configured" }, { status: 400 });
 
-  const stripe = new Stripe(stripeKey, { apiVersion: "2024-12-18.acacia" });
+  const stripe = new Stripe(stripeKey);
 
   let customerId: string | undefined;
   if (userId) {
