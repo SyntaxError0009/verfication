@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       temperature: 0.7,
     });
 
-    const content = completion.choices[0]?.message?.content ?? "{" + "}";
+    const content = completion.choices[0]?.message?.content ?? "{}";
 
     return NextResponse.json({ schema: content });
   } catch (error) {

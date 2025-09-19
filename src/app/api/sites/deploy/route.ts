@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+type DeployBody = {
+  userId: string;
+  name: string;
+  schema: unknown;
+};
+
 export async function POST(request: Request) {
-  const { userId, name, schema } = (await request.json()) as {
-    userId: string;
-    name: string;
-    schema: any;
-  };
+  const { userId, name, schema } = (await request.json()) as DeployBody;
 
   // Very simplified: create site, assign random subdomain, create one page with schema
   const subdomain = `${Math.random().toString(36).slice(2, 8)}`;
-  const site = await prisma.site.create({
+  await prisma.site.create({
     data: {
       ownerId: userId,
       name,
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
           {
             name: "Home",
             slug: "index",
-            content: schema ?? {},
+            content: (schema as object) ?? {},
             order: 0,
           },
         ],

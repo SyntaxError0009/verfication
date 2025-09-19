@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
   contentKey: string;
@@ -14,7 +14,7 @@ export function InlineEditable({ contentKey, defaultValue, className }: Props) {
   const [hover, setHover] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  async function save() {
+  const save = useCallback(async () => {
     setSaving(true);
     await fetch("/api/admin/content", {
       method: "POST",
@@ -22,7 +22,7 @@ export function InlineEditable({ contentKey, defaultValue, className }: Props) {
       body: JSON.stringify({ key: contentKey, value }),
     });
     setSaving(false);
-  }
+  }, [contentKey, value]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -33,7 +33,7 @@ export function InlineEditable({ contentKey, defaultValue, className }: Props) {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [value]);
+  }, [value, save]);
 
   return (
     <div
